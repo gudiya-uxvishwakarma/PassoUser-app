@@ -346,11 +346,11 @@ export const WorkerPaymentScreen = ({route, navigation}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFFFFF',
   },
   gradientBackground: {
     flex: 1,
-    backgroundColor: '#E8E4F3', // Light purple gradient effect
+    backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
@@ -508,17 +508,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     borderWidth: 2,
     borderColor: '#E8E8E8',
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 1},
-    shadowOpacity: 0.04,
-    shadowRadius: 2,
+    elevation: 0,
+    shadowColor: 'transparent',
+    shadowOffset: {width: 0, height: 0},
+    shadowOpacity: 0,
+    shadowRadius: 0,
   },
   methodCardActive: {
     borderColor: colors.primary,
-    backgroundColor: colors.primary + '05',
-    elevation: 3,
-    shadowOpacity: 0.12,
+    backgroundColor: '#FFFFFF',
+    elevation: 0,
+    shadowOpacity: 0,
   },
   methodLeft: {
     flexDirection: 'row',

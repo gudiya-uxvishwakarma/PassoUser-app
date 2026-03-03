@@ -34,6 +34,7 @@ import {
   SettingsScreen,
   EditProfileScreen,
   HelpSupportScreen,
+  FeedbackScreen,
 } from '../screens';
 import {colors} from '../theme';
 
@@ -262,6 +263,11 @@ export const AppNavigator = () => {
         <Stack.Screen
           name="HelpSupport"
           component={HelpSupportScreen}
+          options={{headerShown: false}}
+        />
+        <Stack.Screen
+          name="Feedback"
+          component={FeedbackScreen}
           options={{headerShown: false}}
         />
       </Stack.Navigator>

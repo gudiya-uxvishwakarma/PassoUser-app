@@ -27,6 +27,7 @@ const CARD_WIDTH = (width - spacing.md * 3) / 2;
 export const WorkerDiscoveryScreen = ({route, navigation}) => {
   const {selectedCategory: initialCategory, selectedService: initialService} = route.params || {};
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(initialCategory || null);
   const [selectedService, setSelectedService] = useState(initialService || null);
   const [selectedWorkerTypes, setSelectedWorkerTypes] = useState([]);
@@ -47,9 +48,18 @@ export const WorkerDiscoveryScreen = ({route, navigation}) => {
     }
   }, [initialCategory, initialService]);
 
+  // Debounce search query - wait 500ms after user stops typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   useEffect(() => {
     fetchWorkers();
-  }, [selectedCategory, selectedService, verifiedOnly, searchQuery]);
+  }, [selectedCategory, selectedService, verifiedOnly, debouncedSearchQuery, selectedWorkerTypes, selectedAvailability, maxDistance]);
 
   const fetchWorkers = async () => {
     try {
@@ -59,7 +69,9 @@ export const WorkerDiscoveryScreen = ({route, navigation}) => {
       const filters = {};
       if (selectedCategory) filters.category = selectedCategory;
       if (verifiedOnly) filters.verified = true;
-      if (searchQuery) filters.search = searchQuery;
+      if (debouncedSearchQuery && debouncedSearchQuery.trim()) {
+        filters.search = debouncedSearchQuery.trim();
+      }
       
       const response = await workerService.getAllWorkers(filters);
       
@@ -83,6 +95,7 @@ export const WorkerDiscoveryScreen = ({route, navigation}) => {
       }
     } catch (error) {
       console.error('❌ Fetch workers error:', error);
+      setWorkers([]);
     } finally {
       setLoading(false);
     }
@@ -316,7 +329,9 @@ export const WorkerDiscoveryScreen = ({route, navigation}) => {
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Finding workers...</Text>
+            <Text style={styles.loadingText}>
+              {searchQuery ? 'Searching workers...' : 'Finding workers...'}
+            </Text>
           </View>
         ) : workers.length > 0 ? (
           <View style={styles.listContainer}>

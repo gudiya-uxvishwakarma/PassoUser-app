@@ -9,6 +9,9 @@ import {
   FlatList,
   Animated,
   ActivityIndicator,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -27,6 +30,8 @@ export const HomeScreen = ({navigation}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [filteredCategories, setFilteredCategories] = useState([]);
   const bannerRef = useRef(null);
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -161,6 +166,95 @@ export const HomeScreen = ({navigation}) => {
     ]).start();
   }, []);
 
+  // Filter categories based on search query with improved matching
+  useEffect(() => {
+    if (searchQuery.trim().length > 0) {
+      const query = searchQuery.toLowerCase().trim();
+      
+      // Filter and sort categories by relevance
+      const filtered = categories
+        .filter(category => {
+          const categoryName = category.name.toLowerCase();
+          
+          // Match if query is found anywhere in the category name
+          if (categoryName.includes(query)) {
+            return true;
+          }
+          
+          // Match individual words (e.g., "plum" matches "Plumber")
+          const words = categoryName.split(' ');
+          return words.some(word => word.startsWith(query));
+        })
+        .sort((a, b) => {
+          const aName = a.name.toLowerCase();
+          const bName = b.name.toLowerCase();
+          
+          // Prioritize exact matches
+          if (aName === query) return -1;
+          if (bName === query) return 1;
+          
+          // Prioritize starts with
+          if (aName.startsWith(query) && !bName.startsWith(query)) return -1;
+          if (bName.startsWith(query) && !aName.startsWith(query)) return 1;
+          
+          // Then alphabetical
+          return aName.localeCompare(bName);
+        });
+      
+      setFilteredCategories(filtered);
+      setShowSearchDropdown(true);
+    } else {
+      setFilteredCategories([]);
+      setShowSearchDropdown(false);
+    }
+  }, [searchQuery, categories]);
+
+  // Handle search query change
+  const handleSearchChange = (text) => {
+    setSearchQuery(text);
+  };
+
+  // Handle service selection from dropdown
+  const handleServiceSelect = (category) => {
+    setSearchQuery('');
+    setShowSearchDropdown(false);
+    Keyboard.dismiss();
+    navigation.navigate('WorkerDiscovery', {selectedCategory: category.name});
+  };
+
+  // Close dropdown when clicking outside
+  const handleOutsidePress = () => {
+    if (showSearchDropdown) {
+      setShowSearchDropdown(false);
+      Keyboard.dismiss();
+    }
+  };
+
+  // Helper function to render highlighted text
+  const renderHighlightedText = (text, query) => {
+    if (!query.trim()) {
+      return <Text style={styles.modalItemName}>{text}</Text>;
+    }
+    
+    const lowerText = text.toLowerCase();
+    const lowerQuery = query.toLowerCase();
+    const index = lowerText.indexOf(lowerQuery);
+    
+    if (index === -1) {
+      return <Text style={styles.modalItemName}>{text}</Text>;
+    }
+    
+    return (
+      <Text style={styles.modalItemName}>
+        {text.substring(0, index)}
+        <Text style={styles.highlightedText}>
+          {text.substring(index, index + query.length)}
+        </Text>
+        {text.substring(index + query.length)}
+      </Text>
+    );
+  };
+
   const bannerColors = ['#2c2d6d', '#82af42', '#3ba6cf'];
 
   // Show loading state
@@ -234,9 +328,98 @@ export const HomeScreen = ({navigation}) => {
         navigation={navigation} 
         showLocationAndNotification={true}
         showSearchBar={true}
-        onSearchChange={setSearchQuery}
+        onSearchChange={handleSearchChange}
         searchValue={searchQuery}
       />
+
+      {/* Search Modal Popup */}
+      <Modal
+        visible={showSearchDropdown}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleOutsidePress}>
+        <TouchableWithoutFeedback onPress={handleOutsidePress}>
+          <View style={styles.modalOverlay}>
+            <TouchableWithoutFeedback>
+              <View style={styles.modalContent}>
+                {/* Modal Header */}
+                <View style={styles.modalHeader}>
+                  <View style={styles.modalHeaderLeft}>
+                    <Icon name="search" size={24} color={colors.primary} />
+                    <View>
+                      <Text style={styles.modalTitle}>Search Results</Text>
+                      {filteredCategories.length > 0 && (
+                        <Text style={styles.modalSubtitle}>
+                          Found {filteredCategories.length} service{filteredCategories.length !== 1 ? 's' : ''}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                  <TouchableOpacity 
+                    onPress={handleOutsidePress}
+                    style={styles.closeButton}>
+                    <Icon name="close" size={24} color={colors.text} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Search Results */}
+                {filteredCategories.length > 0 ? (
+                  <ScrollView 
+                    style={styles.modalScrollView}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled">
+                    {filteredCategories.map((category, index) => (
+                      <TouchableOpacity
+                        key={category._id}
+                        style={[
+                          styles.modalItem,
+                          index === filteredCategories.length - 1 && styles.modalItemLast
+                        ]}
+                        onPress={() => handleServiceSelect(category)}
+                        activeOpacity={0.7}>
+                        <View style={styles.modalItemIconContainer}>
+                          {category.iconFamily === 'MaterialCommunityIcons' ? (
+                            <MaterialCommunityIcons 
+                              name={category.icon || 'briefcase'} 
+                              size={28} 
+                              color="#FFFFFF" 
+                            />
+                          ) : (
+                            <Icon 
+                              name={category.icon || 'briefcase'} 
+                              size={28} 
+                              color="#FFFFFF" 
+                            />
+                          )}
+                        </View>
+                        <View style={styles.modalItemTextContainer}>
+                          {renderHighlightedText(category.name, searchQuery)}
+                          {category.totalWorkers > 0 && (
+                            <View style={styles.modalItemWorkerInfo}>
+                              <Icon name="people" size={14} color={colors.primary} />
+                              <Text style={styles.modalItemWorkers}>
+                                {category.totalWorkers} workers available
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <View style={styles.noResultsContainer}>
+                    <Icon name="search-outline" size={64} color={colors.textLight} />
+                    <Text style={styles.noResultsText}>No services found</Text>
+                    <Text style={styles.noResultsSubtext}>
+                      Try searching with different keywords
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
 
@@ -522,5 +705,178 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 30,
     marginBottom: spacing.sm,
+  },
+  // Modal Popup Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.lg,
+  },
+  modalContent: {
+    width: '100%',
+    maxHeight: '70%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: borderRadius.xl,
+    overflow: 'hidden',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.lightBg,
+  },
+  modalHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  modalSubtitle: {
+    fontSize: 12,
+    color: colors.textLight,
+    marginTop: 2,
+  },
+  closeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  modalScrollView: {
+    maxHeight: '100%',
+  },
+  modalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: '#FFFFFF',
+  },
+  modalItemLast: {
+    borderBottomWidth: 0,
+  },
+  modalItemIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+    elevation: 3,
+    shadowColor: colors.primary,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+  },
+  modalItemTextContainer: {
+    flex: 1,
+  },
+  modalItemName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  highlightedText: {
+    backgroundColor: '#FFF3CD',
+    color: colors.primary,
+  },
+  modalItemWorkerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  modalItemWorkers: {
+    fontSize: 13,
+    color: colors.textLight,
+    fontWeight: '500',
+  },
+  noResultsContainer: {
+    padding: spacing.xl * 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noResultsText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: spacing.lg,
+  },
+  noResultsSubtext: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  // Old dropdown styles - can be removed
+  searchDropdown: {
+    position: 'absolute',
+    top: 160,
+    left: spacing.md,
+    right: spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderRadius: borderRadius.lg,
+    maxHeight: 400,
+    zIndex: 1000,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 4},
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  searchDropdownScroll: {
+    maxHeight: 400,
+  },
+  searchDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  searchItemIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.lightBg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  searchItemTextContainer: {
+    flex: 1,
+  },
+  searchItemName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  searchItemWorkers: {
+    fontSize: 12,
+    color: colors.textLight,
   },
 });

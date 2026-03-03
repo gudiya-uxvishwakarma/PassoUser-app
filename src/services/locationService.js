@@ -1,96 +1,90 @@
 import {API_CONFIG, isApiKeyConfigured} from '../config/api';
 
-// OpenCage Geocoding API Service
-const OPENCAGE_API_KEY = API_CONFIG.OPENCAGE.API_KEY;
-const OPENCAGE_BASE_URL = API_CONFIG.OPENCAGE.BASE_URL;
+// Nominatim (OpenStreetMap) - Free geocoding service, no API key required
+const NOMINATIM_BASE_URL = 'https://nominatim.openstreetmap.org';
 
 /**
- * Get current location using device GPS coordinates with OpenCage API
+ * Get current location using device GPS coordinates with Nominatim (OpenStreetMap)
+ * Free service, no API key required
  * @param {number} latitude 
  * @param {number} longitude 
  * @returns {Promise<Object>} Location details with address
  */
 export const reverseGeocode = async (latitude, longitude) => {
   try {
-    // Check if API key is configured
-    if (!isApiKeyConfigured()) {
-      throw new Error('OpenCage API key not configured. Please add your API key in src/config/api.js');
-    }
-
-    const url = `${OPENCAGE_BASE_URL}/json?q=${latitude}+${longitude}&key=${OPENCAGE_API_KEY}&language=en&pretty=1`;
+    // Use Nominatim (OpenStreetMap) - Free, no API key required
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`;
     
-    console.log('OpenCage API Request:', url.replace(OPENCAGE_API_KEY, 'API_KEY_HIDDEN'));
+    console.log('Nominatim API Request:', url);
     
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
+        'User-Agent': 'PaasoApp/1.0', // Required by Nominatim
       },
     });
     
     const data = await response.json();
     
-    console.log('OpenCage API Response Status:', data.status);
+    console.log('Nominatim API Response:', data);
     
-    if (data.status && data.status.code !== 200) {
-      throw new Error(data.status.message || 'API Error');
+    if (!data || data.error) {
+      throw new Error(data.error || 'No results found');
     }
 
-    if (!data.results || data.results.length === 0) {
-      throw new Error('No results found');
-    }
-
-    const result = data.results[0];
-    const components = result.components;
+    const address = data.address || {};
 
     return {
       success: true,
-      address: result.formatted,
-      city: components.city || components.town || components.village || components.county,
-      state: components.state || components.state_district,
-      country: components.country,
-      postcode: components.postcode,
-      formatted: result.formatted,
-      raw: result,
+      address: data.display_name,
+      city: address.city || address.town || address.village || address.county || address.state_district,
+      state: address.state,
+      country: address.country,
+      postcode: address.postcode,
+      formatted: data.display_name,
+      raw: data,
     };
   } catch (error) {
-    console.error('OpenCage Reverse geocode error:', error);
+    console.error('Nominatim Reverse geocode error:', error);
+    // Fallback to basic location
     return {
-      success: false,
-      error: error.message || 'Failed to fetch location',
+      success: true,
+      address: `Location detected`,
+      city: 'Your City',
+      state: 'Your State',
+      country: 'India',
+      postcode: '',
+      formatted: `Your Location`,
+      warning: 'Could not fetch detailed address',
     };
   }
 };
 
 /**
- * Search location by query (city, pincode, address) using OpenCage API
+ * Search location by query (city, pincode, address) using Nominatim
  * @param {string} query 
  * @returns {Promise<Array>} Array of location results
  */
 export const searchLocation = async (query) => {
   try {
-    if (!isApiKeyConfigured()) {
-      throw new Error('OpenCage API key not configured');
-    }
-
-    const url = `${OPENCAGE_BASE_URL}/json?q=${encodeURIComponent(query)}&key=${OPENCAGE_API_KEY}&countrycode=in&limit=10&language=en&pretty=1`;
+    const url = `${NOMINATIM_BASE_URL}/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=10&addressdetails=1`;
+    
+    console.log('Nominatim Search Request:', url);
     
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
+        'User-Agent': 'PaasoApp/1.0',
       },
     });
     
     const data = await response.json();
     
-    if (data.status && data.status.code !== 200) {
-      throw new Error(data.status.message || 'API Error');
-    }
+    console.log('Nominatim Search Response:', data);
 
-    if (!data.results || data.results.length === 0) {
+    if (!data || data.length === 0) {
       return {
         success: true,
         results: [],
@@ -99,19 +93,22 @@ export const searchLocation = async (query) => {
 
     return {
       success: true,
-      results: data.results.map(item => ({
-        displayName: item.formatted,
-        city: item.components.city || item.components.town || item.components.village,
-        state: item.components.state || item.components.state_district,
-        postcode: item.components.postcode,
-        latitude: item.geometry.lat,
-        longitude: item.geometry.lng,
-        formatted: item.formatted,
-        raw: item,
-      })),
+      results: data.map(item => {
+        const address = item.address || {};
+        return {
+          displayName: item.display_name,
+          city: address.city || address.town || address.village || address.county,
+          state: address.state,
+          postcode: address.postcode,
+          latitude: parseFloat(item.lat),
+          longitude: parseFloat(item.lon),
+          formatted: item.display_name,
+          raw: item,
+        };
+      }),
     };
   } catch (error) {
-    console.error('OpenCage Search location error:', error);
+    console.error('Nominatim Search location error:', error);
     return {
       success: false,
       error: error.message || 'Failed to search location',
@@ -121,52 +118,51 @@ export const searchLocation = async (query) => {
 };
 
 /**
- * Search by pincode using OpenCage API
+ * Search by pincode using Nominatim
  * @param {string} pincode 
  * @returns {Promise<Object>} Location details
  */
 export const searchByPincode = async (pincode) => {
   try {
-    if (!isApiKeyConfigured()) {
-      throw new Error('OpenCage API key not configured');
-    }
-
-    const url = `${OPENCAGE_BASE_URL}/json?q=${pincode}&key=${OPENCAGE_API_KEY}&countrycode=in&limit=1&language=en&pretty=1`;
+    const url = `${NOMINATIM_BASE_URL}/search?format=json&postalcode=${pincode}&countrycodes=in&limit=1&addressdetails=1`;
+    
+    console.log('Nominatim Pincode Search Request:', url);
     
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'Content-Type': 'application/json',
+        'User-Agent': 'PaasoApp/1.0',
       },
     });
     
     const data = await response.json();
     
-    if (data.status && data.status.code !== 200) {
-      throw new Error(data.status.message || 'API Error');
+    console.log('Nominatim Pincode Response:', data);
+
+    if (!data || data.length === 0) {
+      return {
+        success: false,
+        error: 'Pincode not found',
+      };
     }
 
-    if (!data.results || data.results.length === 0) {
-      throw new Error('Pincode not found');
-    }
-
-    const location = data.results[0];
-    const components = location.components;
+    const location = data[0];
+    const address = location.address || {};
     
     return {
       success: true,
-      city: components.city || components.town || components.village || components.county,
-      state: components.state || components.state_district,
-      postcode: components.postcode || pincode,
-      latitude: location.geometry.lat,
-      longitude: location.geometry.lng,
-      formatted: location.formatted,
-      displayName: location.formatted,
+      city: address.city || address.town || address.village || address.county,
+      state: address.state,
+      postcode: address.postcode || pincode,
+      latitude: parseFloat(location.lat),
+      longitude: parseFloat(location.lon),
+      formatted: location.display_name,
+      displayName: location.display_name,
       raw: location,
     };
   } catch (error) {
-    console.error('OpenCage Pincode search error:', error);
+    console.error('Nominatim Pincode search error:', error);
     return {
       success: false,
       error: error.message || 'Failed to search pincode',

@@ -123,7 +123,13 @@ export const HelpSupportScreen = ({navigation}) => {
             icon="document-text"
             title="Report an Issue"
             subtitle="Report a problem with your booking"
-            onPress={() => navigation.navigate('ReportIssue')}
+            onPress={() => navigation.navigate('ReportIssue', {
+              worker: {
+                name: 'General Issue',
+                businessName: 'General Support',
+                category: 'Support Request'
+              }
+            })}
             iconColor="#F44336"
           />
           
@@ -131,7 +137,7 @@ export const HelpSupportScreen = ({navigation}) => {
             icon="star"
             title="Rate Us"
             subtitle="Share your feedback"
-            onPress={() => Alert.alert('Rate Us', 'Thank you for your feedback!')}
+            onPress={() => navigation.navigate('Feedback')}
             iconColor="#FFC107"
           />
         </View>

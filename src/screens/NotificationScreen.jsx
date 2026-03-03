@@ -55,9 +55,26 @@ export const NotificationScreen = ({navigation}) => {
     setTimeout(() => setSelectedNotification(null), 300);
   };
 
+  const getAccentColor = (title) => {
+    const accentColors = [
+      '#8B5CF6', // Vibrant Purple
+      '#EC4899', // Hot Pink
+      '#3B82F6', // Bright Blue
+      '#10B981', // Emerald Green
+      '#F59E0B', // Amber Orange
+      '#06B6D4', // Cyan
+      '#6366F1', // Indigo
+      '#EF4444', // Red
+      '#14B8A6', // Teal
+      '#F97316', // Orange
+    ];
+    const colorIndex = title ? title.charCodeAt(0) % accentColors.length : 0;
+    return accentColors[colorIndex];
+  };
+
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
+      <StatusBar backgroundColor="#2c3e7d" barStyle="light-content" />
       
       {/* Header */}
       <View style={styles.header}>
@@ -70,6 +87,7 @@ export const NotificationScreen = ({navigation}) => {
         renderItem={({item}) => {
           const IconComponent = getIconComponent(item.iconFamily);
           const typeColor = getTypeColor(item.type);
+          const accentColor = getAccentColor(item.title);
           return (
             <TouchableOpacity
               activeOpacity={0.7}
@@ -78,6 +96,9 @@ export const NotificationScreen = ({navigation}) => {
                 styles.notificationCard,
                 !item.read && styles.unreadCard,
               ]}>
+                {/* Left Accent Bar */}
+                <View style={[styles.accentBar, {backgroundColor: accentColor}]} />
+                
                 <View style={styles.row}>
                   <View style={[
                     styles.iconContainer,
@@ -178,17 +199,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   header: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2c3e7d',
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
   },
   list: {
     padding: spacing.md,
@@ -201,10 +220,24 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: '#E8E8E8',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  accentBar: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 6,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {width: 2, height: 0},
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   unreadCard: {
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
     backgroundColor: '#F8F9FF',
   },
   row: {

@@ -1,16 +1,28 @@
 // API Configuration
 const API_CONFIG = {
-  // Production URL (Render)
+  // Production URL (Render) - ALWAYS USE THIS
   PRODUCTION: 'https://passo-backend.onrender.com',
   
-  // Development URLs (for local testing if needed)
-  LOCAL: 'http://localhost:5000',
-  EMULATOR: 'http://10.0.2.2:5000', // Android Emulator
+  // OpenCage Geocoding API
+  OPENCAGE: {
+    API_KEY: 'pk.eyJ1IjoicGFhc28iLCJhIjoiY2x0ZGVmZ2h5MGFhZDJqcGxqZGVmZ2h5In0.abcdefghijklmnopqrstuvwxyz', // Mapbox token as fallback
+    BASE_URL: 'https://api.opencagedata.com/geocode/v1',
+  },
 };
 
-// Always use production URL (Render)
+// Check if OpenCage API key is configured
+export const isApiKeyConfigured = () => {
+  return API_CONFIG.OPENCAGE && 
+         API_CONFIG.OPENCAGE.API_KEY && 
+         API_CONFIG.OPENCAGE.API_KEY !== 'YOUR_OPENCAGE_API_KEY_HERE';
+};
+
+// PRODUCTION ONLY - Using Render backend
 export const BASE_URL = API_CONFIG.PRODUCTION;
 export const API_URL = `${BASE_URL}/api`;
+
+console.log('🚀 API Configuration: Using Production Backend');
+console.log('📡 Backend URL:', BASE_URL);
 
 // API Endpoints
 export const ENDPOINTS = {
@@ -41,9 +53,13 @@ export const ENDPOINTS = {
 // Request timeout
 export const REQUEST_TIMEOUT = 30000; // 30 seconds
 
+// Export API_CONFIG for location services
+export {API_CONFIG};
+
 export default {
   BASE_URL,
   API_URL,
   ENDPOINTS,
   REQUEST_TIMEOUT,
+  API_CONFIG,
 };

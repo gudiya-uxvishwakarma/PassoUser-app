@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {View, Text, StyleSheet, TouchableOpacity, StatusBar, TextInput} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {colors, spacing} from '../theme';
@@ -16,6 +16,28 @@ export const Navbar = ({
   searchValue = '',
 }) => {
   const [localSearchQuery, setLocalSearchQuery] = useState('');
+  const [currentLocation, setCurrentLocation] = useState('Bangalore, Karnataka');
+  
+  // Update location when screen comes into focus
+  useEffect(() => {
+    const updateLocation = () => {
+      if (global.selectedLocation && global.selectedLocation.formatted) {
+        setCurrentLocation(global.selectedLocation.formatted);
+      }
+    };
+    
+    // Update immediately
+    updateLocation();
+    
+    // Listen for navigation focus events
+    const unsubscribe = navigation?.addListener?.('focus', updateLocation);
+    
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [navigation]);
   
   const handleSearchChange = (text) => {
     setLocalSearchQuery(text);
@@ -52,7 +74,9 @@ export const Navbar = ({
             {showLocationAndNotification ? (
               <>
                 <Text style={styles.currentLocationLabel}>Current location</Text>
-                <Text style={styles.locationName}>Bangalore, Karnataka</Text>
+                <Text style={styles.locationName} numberOfLines={1}>
+                  {currentLocation}
+                </Text>
               </>
             ) : (
               <Text style={styles.pageTitle}>{title}</Text>

@@ -12,20 +12,35 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import {colors, spacing, borderRadius, shadows} from '../theme';
+import {useUser} from '../context/UserContext';
 
 export const LoginScreen = ({navigation}) => {
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const {loginUser} = useUser();
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!phoneNumber || phoneNumber.length !== 10) {
       Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
       return;
     }
 
+    if (!name || !email) {
+      Alert.alert('Error', 'Please enter your name and email');
+      return;
+    }
+
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    // Simulate API call and save user data
+    setTimeout(async () => {
+      await loginUser({
+        name: name,
+        email: email,
+        phone: `+91 ${phoneNumber}`,
+        address: 'Not provided',
+      });
       setIsLoading(false);
       navigation.replace('Main');
     }, 1500);
@@ -54,6 +69,36 @@ export const LoginScreen = ({navigation}) => {
 
         {/* Login Form */}
         <View style={styles.formContainer}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Full Name</Text>
+            <View style={styles.inputContainer}>
+              <Icon name="person-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your full name"
+                value={name}
+                onChangeText={setName}
+                placeholderTextColor={colors.textLight}
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Email Address</Text>
+            <View style={styles.inputContainer}>
+              <Icon name="mail-outline" size={20} color={colors.textLight} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholderTextColor={colors.textLight}
+              />
+            </View>
+          </View>
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Mobile Number</Text>
             <View style={styles.inputContainer}>

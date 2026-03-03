@@ -402,7 +402,7 @@ export const PaymentMethodScreen = ({route, navigation}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.lightBg,
+    backgroundColor: '#FFFFFF',
   },
   header: {
     backgroundColor: '#242767',
@@ -564,11 +564,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: spacing.lg,
     marginBottom: spacing.md,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    elevation: 0,
+    shadowColor: 'transparent',
+    shadowOffset: {width: 0, height: 0},
+    shadowOpacity: 0,
+    shadowRadius: 0,
     position: 'relative',
     minHeight: 110,
   },

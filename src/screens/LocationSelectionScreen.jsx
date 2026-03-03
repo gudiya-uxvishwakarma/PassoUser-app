@@ -155,59 +155,105 @@ export const LocationSelectionScreen = ({navigation}) => {
       return;
     }
 
-    Geolocation.getCurrentPosition(
-      async (position) => {
-        const {latitude, longitude} = position.coords;
-        
-        try {
-          const result = await reverseGeocode(latitude, longitude);
-          
-          if (result.success) {
-            const location = result.postcode
-              ? `${result.city}, ${result.state} - ${result.postcode}`
-              : `${result.city}, ${result.state}`;
-            
-            setSelectedLocation(location);
-            
-            // Save to global state
-            global.selectedLocation = {
-              city: result.city,
-              state: result.state,
-              pincode: result.postcode,
-              formatted: location,
-              fullAddress: result.formatted,
-            };
-            
-            Alert.alert(
-              'Location Detected',
-              `Your location: ${location}`,
-              [
-                {
-                  text: 'OK',
-                  onPress: () => navigation.goBack(),
-                },
-              ]
-            );
-          } else {
-            Alert.alert('Error', 'Could not fetch location details');
+    // First try with high accuracy
+    const tryGetLocation = (useHighAccuracy, timeoutDuration) => {
+      return new Promise((resolve, reject) => {
+        Geolocation.getCurrentPosition(
+          (position) => resolve(position),
+          (error) => reject(error),
+          {
+            enableHighAccuracy: useHighAccuracy,
+            timeout: timeoutDuration,
+            maximumAge: 10000,
           }
-        } catch (error) {
-          Alert.alert('Error', 'Failed to get location details');
-        } finally {
-          setIsLoadingLocation(false);
+        );
+      });
+    };
+
+    try {
+      let position;
+      
+      // Try high accuracy first (GPS)
+      try {
+        console.log('Trying high accuracy GPS...');
+        position = await tryGetLocation(true, 15000);
+      } catch (error) {
+        console.log('High accuracy failed, trying network location...');
+        // Fallback to network location (faster but less accurate)
+        try {
+          position = await tryGetLocation(false, 10000);
+        } catch (networkError) {
+          throw networkError;
         }
-      },
-      (error) => {
-        console.error('Location error:', error);
-        Alert.alert('Error', 'Could not get your location. Please try again.');
-        setIsLoadingLocation(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 10000,
       }
-    );
+
+      const {latitude, longitude} = position.coords;
+      console.log('Location obtained:', {latitude, longitude});
+      
+      try {
+        const result = await reverseGeocode(latitude, longitude);
+        
+        if (result.success) {
+          const location = result.postcode
+            ? `${result.city}, ${result.state} - ${result.postcode}`
+            : `${result.city}, ${result.state}`;
+          
+          setSelectedLocation(location);
+          
+          // Save to global state
+          global.selectedLocation = {
+            city: result.city,
+            state: result.state,
+            pincode: result.postcode,
+            formatted: location,
+            fullAddress: result.formatted,
+          };
+          
+          Alert.alert(
+            'Location Detected',
+            `Your location: ${location}`,
+            [
+              {
+                text: 'OK',
+                onPress: () => navigation.goBack(),
+              },
+            ]
+          );
+        } else {
+          Alert.alert('Error', 'Could not fetch location details. Please select manually.');
+        }
+      } catch (error) {
+        console.error('Geocoding error:', error);
+        Alert.alert('Error', 'Failed to get location details. Please select manually.');
+      }
+    } catch (error) {
+      console.error('Location error:', error);
+      let errorMessage = '';
+      let errorTitle = 'Location Error';
+      
+      switch (error.code) {
+        case 1:
+          errorTitle = 'Permission Denied';
+          errorMessage = 'Please allow location access in your device settings.';
+          break;
+        case 2:
+          errorTitle = 'Location Unavailable';
+          errorMessage = 'Please enable GPS/Location services in your device settings and try again.';
+          break;
+        case 3:
+          errorTitle = 'Location Timeout';
+          errorMessage = 'Could not detect location. Please:\n\n1. Enable GPS/Location services\n2. Go to an open area\n3. Try again or select location manually';
+          break;
+        default:
+          errorMessage = 'Could not detect location. Please select manually from the list below.';
+      }
+      
+      Alert.alert(errorTitle, errorMessage, [
+        {text: 'OK', style: 'cancel'}
+      ]);
+    } finally {
+      setIsLoadingLocation(false);
+    }
   };
 
   return (
@@ -217,7 +263,7 @@ export const LocationSelectionScreen = ({navigation}) => {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color={colors.text} />
+          <Icon name="arrow-back" size={24} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Select Location</Text>
         <View style={styles.placeholder} />
@@ -343,17 +389,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    backgroundColor: colors.background,
+    backgroundColor: '#2b2c6c',
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   backButton: {
     padding: spacing.sm,
   },
+  backButtonIcon: {
+    color: '#FFFFFF',
+  },
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#FFFFFF',
   },
   placeholder: {
     width: 40,

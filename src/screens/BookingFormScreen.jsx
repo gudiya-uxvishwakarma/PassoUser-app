@@ -185,7 +185,6 @@ export const BookingFormScreen = ({route, navigation}) => {
         [
           {text: 'Cancel', style: 'cancel'},
           {text: 'Open Settings', onPress: () => {
-            // Open app settings
             if (Platform.OS === 'android') {
               Linking.openSettings();
             }
@@ -196,75 +195,99 @@ export const BookingFormScreen = ({route, navigation}) => {
       return;
     }
 
-    Geolocation.getCurrentPosition(
-      async (position) => {
-        const {latitude, longitude} = position.coords;
-        
-        console.log('GPS Coordinates:', {latitude, longitude});
-        
-        try {
-          const result = await reverseGeocode(latitude, longitude);
-          
-          console.log('Geocoding Result:', result);
-          
-          if (result.success) {
-            setAddress(result.formatted || result.address);
-            if (result.postcode) {
-              setPincode(result.postcode);
-            }
-            Alert.alert(
-              'Success!',
-              'Your location has been detected successfully.',
-              [{text: 'OK'}]
-            );
-          } else {
-            Alert.alert(
-              'Location Error',
-              result.error || 'Could not fetch location details. Please try again or enter address manually.',
-              [{text: 'OK'}]
-            );
+    // Try location with fallback strategy
+    const tryGetLocation = (useHighAccuracy, timeoutDuration) => {
+      return new Promise((resolve, reject) => {
+        Geolocation.getCurrentPosition(
+          (position) => resolve(position),
+          (error) => reject(error),
+          {
+            enableHighAccuracy: useHighAccuracy,
+            timeout: timeoutDuration,
+            maximumAge: 10000,
           }
-        } catch (error) {
-          console.error('Geocoding error:', error);
+        );
+      });
+    };
+
+    try {
+      let position;
+      
+      // Try high accuracy first (GPS)
+      try {
+        console.log('Trying high accuracy GPS...');
+        position = await tryGetLocation(true, 15000);
+      } catch (error) {
+        console.log('High accuracy failed, trying network location...');
+        // Fallback to network location (faster but less accurate)
+        try {
+          position = await tryGetLocation(false, 10000);
+        } catch (networkError) {
+          throw networkError;
+        }
+      }
+
+      const {latitude, longitude} = position.coords;
+      console.log('GPS Coordinates:', {latitude, longitude});
+      
+      try {
+        const result = await reverseGeocode(latitude, longitude);
+        console.log('Geocoding Result:', result);
+        
+        if (result.success) {
+          setAddress(result.formatted || result.address);
+          if (result.postcode) {
+            setPincode(result.postcode);
+          }
           Alert.alert(
-            'Error',
-            'Failed to get location details. Please check your internet connection and try again.',
+            'Success!',
+            'Your location has been detected successfully.',
             [{text: 'OK'}]
           );
-        } finally {
-          setIsLoadingLocation(false);
+        } else {
+          Alert.alert(
+            'Location Error',
+            result.error || 'Could not fetch location details. Please enter address manually.',
+            [{text: 'OK'}]
+          );
         }
-      },
-      (error) => {
-        console.error('GPS Location error:', error);
-        let errorMessage = 'Could not get your location. ';
-        
-        switch (error.code) {
-          case 1:
-            errorMessage += 'Location permission denied. Please allow location access in settings.';
-            break;
-          case 2:
-            errorMessage += 'Location unavailable. Please check if GPS is enabled and you are in an open area.';
-            break;
-          case 3:
-            errorMessage += 'Location request timed out. Please ensure GPS is enabled and try again in an open area with clear sky view.';
-            break;
-          default:
-            errorMessage += 'Please try again or enter address manually.';
-        }
-        
-        Alert.alert('Location Error', errorMessage, [
-          {text: 'Try Again', onPress: handleGetCurrentLocation},
-          {text: 'Cancel', style: 'cancel'}
-        ]);
-        setIsLoadingLocation(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 30000,  // Increased to 30 seconds
-        maximumAge: 5000,  // Reduced to 5 seconds for fresher location
+      } catch (error) {
+        console.error('Geocoding error:', error);
+        Alert.alert(
+          'Error',
+          'Failed to get location details. Please check your internet connection and try again.',
+          [{text: 'OK'}]
+        );
       }
-    );
+    } catch (error) {
+      console.error('GPS Location error:', error);
+      let errorMessage = '';
+      let errorTitle = 'Location Error';
+      
+      switch (error.code) {
+        case 1:
+          errorTitle = 'Permission Denied';
+          errorMessage = 'Please allow location access in your device settings.';
+          break;
+        case 2:
+          errorTitle = 'Location Unavailable';
+          errorMessage = 'Please enable GPS/Location services in your device settings.';
+          break;
+        case 3:
+          errorTitle = 'Location Timeout';
+          errorMessage = 'Could not detect location. Please:\n\n1. Enable GPS/Location services\n2. Go to an open area\n3. Try again or enter address manually';
+          break;
+        default:
+          errorMessage = 'Could not detect location. Please enter address manually.';
+      }
+      
+      Alert.alert(errorTitle, errorMessage, [
+        {text: 'Try Again', onPress: handleGetCurrentLocation},
+        {text: 'Cancel', style: 'cancel'}
+      ]);
+    } finally {
+      setIsLoadingLocation(false);
+    }
   };
 
   const dates = generateDates();

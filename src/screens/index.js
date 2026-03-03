@@ -32,3 +32,4 @@ export * from './WalletScreen';
 export * from './SettingsScreen';
 export * from './EditProfileScreen';
 export * from './HelpSupportScreen';
+export * from './FeedbackScreen';
